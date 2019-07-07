@@ -201,3 +201,5 @@ include_directories(
 add_executable(gnc_example src/gnc_tutorial.cpp)
 target_link_libraries(gnc_example ${catkin_LIBRARIES})
 
+add_executable(sr src/sr_sol.cpp)
+target_link_libraries(sr ${catkin_LIBRARIES})
