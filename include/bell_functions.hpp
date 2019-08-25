@@ -16,7 +16,7 @@
 #include <ros/duration.h>
 #include <iostream>
 #include <geometry_msgs/Point.h>
-
+#include <gazebo_msgs/ModelStates.h> 
 
 /**
 \defgroup control_functions
@@ -29,6 +29,8 @@ nav_msgs::Odometry current_pose_g;
 geometry_msgs::Pose correction_vector_g;
 geometry_msgs::Point local_offset_pose_g;
 geometry_msgs::PoseStamped waypoint_g;
+geometry_msgs::Twist velocity_estimate_g;
+geometry_msgs::PoseStamped currentTrueDroneState_g; 
 
 float current_heading_g;
 float local_offset_g;
@@ -40,6 +42,7 @@ float local_desired_heading_g;
 ros::Publisher local_pos_pub;
 ros::Subscriber currentPos;
 ros::Subscriber state_sub;
+ros::Subscriber currentHeading;
 ros::ServiceClient arming_client;
 ros::ServiceClient land_client;
 ros::ServiceClient set_mode_client;
@@ -56,6 +59,33 @@ struct gnc_api_waypoint{
 	float psi; ///< rotation about the third axis of your reference frame
 };
 
+void model_cb(const gazebo_msgs::ModelStates::ConstPtr& msg)
+{
+  gazebo_msgs::ModelStates current_states = *msg;
+  int irisArrPos = 999;
+
+  //search for the drone
+  for (int i=0; i< current_states.name.size(); i++)
+  {
+  	if(current_states.name[i] == "iris")
+  	{
+  		irisArrPos = i;
+  		break;
+  	}
+  	
+  }
+  if (irisArrPos == 999)
+  {
+  	std::cout << "iris is not in world" << std::endl; 
+  }else{
+  	currentTrueDroneState_g.pose = current_states.pose[irisArrPos];
+  	currentTrueDroneState_g.header.stamp = ros::Time::now();
+  	velocity_estimate_g = current_states.twist[irisArrPos];
+  }
+  
+
+  //std::cout << current_states << std::endl;
+}
 //get armed state
 void state_cb(const mavros_msgs::State::ConstPtr& msg)
 {
@@ -102,15 +132,23 @@ geometry_msgs::Point get_current_loaction()
 }
 geometry_msgs::Point get_current_velocity()
 {
+	
 	geometry_msgs::Point current_velocity;
-	float x = current_pose_g.twist.twist.linear.x;
-	float y = current_pose_g.twist.twist.linear.y;
-	float z = current_pose_g.twist.twist.linear.z;
+	float x = velocity_estimate_g.linear.x;
+	float y = velocity_estimate_g.linear.y;
+	float z = velocity_estimate_g.linear.z;
 	float deg2rad = (M_PI/180);
-	geometry_msgs::Point current_pos_local;
 
-	current_velocity.x = x*cos(-(local_offset_g - current_heading_g - 90)*deg2rad) - y*sin(-(local_offset_g - current_heading_g - 90)*deg2rad);
-	current_velocity.y = x*sin(-(local_offset_g - current_heading_g - 90)*deg2rad) + y*cos(-(local_offset_g - current_heading_g - 90)*deg2rad);
+	float q0 = currentTrueDroneState_g.pose.orientation.w;
+	float q1 = currentTrueDroneState_g.pose.orientation.x;
+	float q2 = currentTrueDroneState_g.pose.orientation.y;
+	float q3 = currentTrueDroneState_g.pose.orientation.z;
+	float psi = atan2((2*(q0*q3 + q1*q2)), (1 - 2*(pow(q2,2) + pow(q3,2))) );
+    //psi = psi*(180/M_PI);
+
+
+	current_velocity.x = x*cos(-psi + 1.57) - y*sin(-psi + 1.57);
+	current_velocity.y = x*sin(-psi + 1.57) + y*cos(-psi + 1.57);
 	current_velocity.z = z;
 
 	return current_velocity;
@@ -385,5 +423,6 @@ int init_publisher_subscriber(ros::NodeHandle controlnode)
 	land_client = controlnode.serviceClient<mavros_msgs::CommandTOL>("/mavros/cmd/land");
 	set_mode_client = controlnode.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
 	takeoff_client = controlnode.serviceClient<mavros_msgs::CommandTOL>("/mavros/cmd/takeoff");
+	currentHeading = controlnode.subscribe<gazebo_msgs::ModelStates>("/gazebo/model_states", 10, model_cb);
 
 }
