@@ -60,15 +60,19 @@ void state_cb(const mavros_msgs::State::ConstPtr& msg)
 {
   current_state_g = *msg;
 }
-void enu_2_local(nav_msgs::Odometry current_pose_enu)
+geometry_msgs::Point enu_2_local(nav_msgs::Odometry current_pose_enu)
 {
   float x = current_pose_enu.pose.pose.position.x;
   float y = current_pose_enu.pose.pose.position.y;
   float z = current_pose_enu.pose.pose.position.z;
   float deg2rad = (M_PI/180);
-  float X = x*cos(local_offset_g*deg2rad) - y*sin(local_offset_g*deg2rad);
-  float Y = x*sin(local_offset_g*deg2rad) + y*cos(local_offset_g*deg2rad);
-  float Z = z;
+  geometry_msgs::Point current_pos_local;
+  current_pos_local.x = x*cos((local_offset_g - 90)*deg2rad) - y*sin((local_offset_g - 90)*deg2rad);
+  current_pos_local.y = x*sin((local_offset_g - 90)*deg2rad) + y*cos((local_offset_g - 90)*deg2rad);
+  current_pos_local.z = z;
+
+  return current_pos_local;
+
   //ROS_INFO("Local position %f %f %f",X, Y, Z);
 }
 //get current position of drone
@@ -88,6 +92,19 @@ void pose_cb(const nav_msgs::Odometry::ConstPtr& msg)
   //ROS_INFO("Current Heading %f origin", current_heading_g);
   //ROS_INFO("x: %f y: %f z: %f", current_pose_g.pose.pose.position.x, current_pose_g.pose.pose.position.y, current_pose_g.pose.pose.position.z);
 }
+geometry_msgs::Point get_current_location()
+{
+	geometry_msgs::Point current_pos_local;
+	current_pos_local = enu_2_local(current_pose_g);
+	return current_pos_local;
+
+}
+float get_current_heading()
+{
+	return current_heading_g;
+}
+
+
 //set orientation of the drone (drone should always be level) 
 // Heading input should match the ENU coordinate system
 /**
@@ -275,6 +292,7 @@ int takeoff(float takeoff_alt)
 	mavros_msgs::CommandTOL srv_takeoff;
 	srv_takeoff.request.altitude = takeoff_alt;
 	if(takeoff_client.call(srv_takeoff)){
+		sleep(3);
 		ROS_INFO("takeoff sent %d", srv_takeoff.response.success);
 	}else{
 		ROS_ERROR("Failed Takeoff");

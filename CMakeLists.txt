@@ -197,9 +197,19 @@ include_directories(
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
+# Solutions 
 
-add_executable(gnc_example src/gnc_tutorial.cpp)
-target_link_libraries(gnc_example ${catkin_LIBRARIES})
 
-add_executable(sr src/sr_sol.cpp)
-target_link_libraries(sr ${catkin_LIBRARIES})
+#add_executable(square src/square.cpp)
+#target_link_libraries(square ${catkin_LIBRARIES})
+
+#add_executable(gnc_example src/gnc_tutorial.cpp)
+#target_link_libraries(gnc_example ${catkin_LIBRARIES})
+
+#add_executable(sub_sol src/subscriber_sol.cpp)
+#target_link_libraries(sub_sol ${catkin_LIBRARIES})
+
+#add_executable(avoidance_sol src/avoidance_sol.cpp)
+#target_link_libraries(avoidance_sol ${catkin_LIBRARIES})
+
+# Add tutorial add_executable lines here 
