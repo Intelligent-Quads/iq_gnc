@@ -252,6 +252,37 @@ int initialize_local_frame()
 	ROS_INFO("the X' axis is facing: %f", local_offset_g);
 	return 0;
 }
+
+int arm()
+{
+	//intitialize first waypoint of mission
+	set_destination(0,0,0,0);
+	for(int i=0; i<100; i++)
+	{
+		local_pos_pub.publish(waypoint_g);
+		ros::spinOnce();
+		ros::Duration(0.01).sleep();
+	}
+	// arming
+	ROS_INFO("Arming drone");
+	mavros_msgs::CommandBool arm_request;
+	arm_request.request.value = true;
+	while (!current_state_g.armed && !arm_request.response.success && ros::ok())
+	{
+		ros::Duration(.1).sleep();
+		arming_client.call(arm_request);
+		local_pos_pub.publish(waypoint_g);
+	}
+	if(arm_request.response.success)
+	{
+		ROS_INFO("Arming Successful");	
+		return 0;
+	}else{
+		ROS_INFO("Arming failed with %d", arm_request.response.success);
+		return -1;	
+	}
+}
+
 /**
 \ingroup control_functions
 The takeoff function will arm the drone and put the drone in a hover above the initial position. 
@@ -314,11 +345,11 @@ int check_waypoint_reached(float tolerance)
 	//check for correct position 
 	float deltaX = abs(waypoint_g.pose.position.x - current_pose_g.pose.pose.position.x);
     float deltaY = abs(waypoint_g.pose.position.y - current_pose_g.pose.pose.position.y);
-    float deltaZ = abs(waypoint_g.pose.position.z - current_pose_g.pose.pose.position.z);
+    float deltaZ = 0; //abs(waypoint_g.pose.position.z - current_pose_g.pose.pose.position.z);
     float dMag = sqrt( pow(deltaX, 2) + pow(deltaY, 2) + pow(deltaZ, 2) );
-
-    // ROS_INFO("current pose x %F y %f z %f", (current_pose_g.pose.pose.position.x), (current_pose_g.pose.pose.position.y), (current_pose_g.pose.pose.position.z));
-    // ROS_INFO("waypoint pose x %F y %f z %f", waypoint_g.pose.position.x, waypoint_g.pose.position.y,waypoint_g.pose.position.z);
+    ROS_INFO("dMag %f", dMag);
+    ROS_INFO("current pose x %F y %f z %f", (current_pose_g.pose.pose.position.x), (current_pose_g.pose.pose.position.y), (current_pose_g.pose.pose.position.z));
+    ROS_INFO("waypoint pose x %F y %f z %f", waypoint_g.pose.position.x, waypoint_g.pose.position.y,waypoint_g.pose.position.z);
     //check orientation
     float cosErr = cos(current_heading_g*(M_PI/180)) - cos(local_desired_heading_g*(M_PI/180));
     float sinErr = sin(current_heading_g*(M_PI/180)) - sin(local_desired_heading_g*(M_PI/180));
@@ -327,9 +358,9 @@ int check_waypoint_reached(float tolerance)
 
     // ROS_INFO("current heading %f", current_heading_g);
     // ROS_INFO("local_desired_heading_g %f", local_desired_heading_g);
-    // ROS_INFO("current heading error %f", headingErr);
+    ROS_INFO("current heading error %f", headingErr);
 
-    if( dMag < tolerance && headingErr < 0.01)
+    if( dMag < tolerance) //&& headingErr < 0.01)
 	{
 		return 1;
 	}else{

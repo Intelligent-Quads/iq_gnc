@@ -199,12 +199,14 @@ include_directories(
 
 # Solutions 
 
+add_executable(square src/square_boat.cpp)
+target_link_libraries(square ${catkin_LIBRARIES})
 
 #add_executable(square src/square.cpp)
 #target_link_libraries(square ${catkin_LIBRARIES})
 
-#add_executable(gnc_example src/gnc_tutorial.cpp)
-#target_link_libraries(gnc_example ${catkin_LIBRARIES})
+add_executable(gnc_example src/gnc_tutorial.cpp)
+target_link_libraries(gnc_example ${catkin_LIBRARIES})
 
 #add_executable(sub_sol src/subscriber_sol.cpp)
 #target_link_libraries(sub_sol ${catkin_LIBRARIES})
