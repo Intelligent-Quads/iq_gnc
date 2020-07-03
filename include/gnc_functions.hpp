@@ -15,6 +15,7 @@
 #include <vector>
 #include <ros/duration.h>
 #include <iostream>
+#include <string>
 
 
 /**
@@ -392,12 +393,21 @@ This function is called at the beginning of a program and will start of the comm
 */
 int init_publisher_subscriber(ros::NodeHandle controlnode)
 {
-	local_pos_pub = controlnode.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local", 10);
-	currentPos = controlnode.subscribe<nav_msgs::Odometry>("/mavros/global_position/local", 10, pose_cb);
-	state_sub = controlnode.subscribe<mavros_msgs::State>("mavros/state", 10, state_cb);
-	arming_client = controlnode.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
-	land_client = controlnode.serviceClient<mavros_msgs::CommandTOL>("/mavros/cmd/land");
-	set_mode_client = controlnode.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
-	takeoff_client = controlnode.serviceClient<mavros_msgs::CommandTOL>("/mavros/cmd/takeoff");
+	std::string ros_namespace;
+	if (!controlnode.hasParam("namespace"))
+	{
+
+		ROS_INFO("using default namespace");
+	}else{
+		controlnode.getParam("namespace", ros_namespace);
+		ROS_INFO("using namespace %s", ros_namespace.c_str());
+	}
+	local_pos_pub = controlnode.advertise<geometry_msgs::PoseStamped>((ros_namespace + "/mavros/setpoint_position/local").c_str(), 10);
+	currentPos = controlnode.subscribe<nav_msgs::Odometry>((ros_namespace + "/mavros/global_position/local").c_str(), 10, pose_cb);
+	state_sub = controlnode.subscribe<mavros_msgs::State>((ros_namespace + "/mavros/state").c_str(), 10, state_cb);
+	arming_client = controlnode.serviceClient<mavros_msgs::CommandBool>((ros_namespace + "/mavros/cmd/arming").c_str());
+	land_client = controlnode.serviceClient<mavros_msgs::CommandTOL>((ros_namespace + "/mavros/cmd/land").c_str());
+	set_mode_client = controlnode.serviceClient<mavros_msgs::SetMode>((ros_namespace + "/mavros/set_mode").c_str());
+	takeoff_client = controlnode.serviceClient<mavros_msgs::CommandTOL>((ros_namespace + "/mavros/cmd/takeoff").c_str());
 
 }

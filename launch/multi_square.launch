@@ -1,0 +1,17 @@
+<launch>
+  <!-- We resume the logic in empty_world.launch, changing only the name of the world to be launched -->
+	<group>
+		<node pkg="iq_gnc" type="square" name="square1" output="screen" ns="/drone1">
+			<param name="namespace" value="/drone1"/>
+			<param name="use_sim_time"  value="true" />
+		</node>
+	</group>
+
+	<group>
+		
+		<node pkg="iq_gnc" type="square" name="square2" output="screen" ns="/drone2">
+			<param name="namespace" value="/drone2"/>
+			<param name="use_sim_time"  value="true" />
+		</node>
+	</group>
+</launch>
