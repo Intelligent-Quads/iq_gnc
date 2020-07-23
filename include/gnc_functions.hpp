@@ -15,6 +15,7 @@
 #include <vector>
 #include <ros/duration.h>
 #include <iostream>
+#include <string>
 
 
 /**
@@ -252,6 +253,37 @@ int initialize_local_frame()
 	ROS_INFO("the X' axis is facing: %f", local_offset_g);
 	return 0;
 }
+
+int arm()
+{
+	//intitialize first waypoint of mission
+	set_destination(0,0,0,0);
+	for(int i=0; i<100; i++)
+	{
+		local_pos_pub.publish(waypoint_g);
+		ros::spinOnce();
+		ros::Duration(0.01).sleep();
+	}
+	// arming
+	ROS_INFO("Arming drone");
+	mavros_msgs::CommandBool arm_request;
+	arm_request.request.value = true;
+	while (!current_state_g.armed && !arm_request.response.success && ros::ok())
+	{
+		ros::Duration(.1).sleep();
+		arming_client.call(arm_request);
+		local_pos_pub.publish(waypoint_g);
+	}
+	if(arm_request.response.success)
+	{
+		ROS_INFO("Arming Successful");	
+		return 0;
+	}else{
+		ROS_INFO("Arming failed with %d", arm_request.response.success);
+		return -1;	
+	}
+}
+
 /**
 \ingroup control_functions
 The takeoff function will arm the drone and put the drone in a hover above the initial position. 
@@ -307,18 +339,18 @@ This function returns an int of 1 or 0. THis function can be used to check when 
 @return 1 - waypoint reached 
 @return 0 - waypoint not reached
 */
-int check_waypoint_reached(float tolerance)
+int check_waypoint_reached(float pos_tolerance=0.3, float heading_tolerance=0.01)
 {
 	local_pos_pub.publish(waypoint_g);
 	
 	//check for correct position 
 	float deltaX = abs(waypoint_g.pose.position.x - current_pose_g.pose.pose.position.x);
     float deltaY = abs(waypoint_g.pose.position.y - current_pose_g.pose.pose.position.y);
-    float deltaZ = abs(waypoint_g.pose.position.z - current_pose_g.pose.pose.position.z);
+    float deltaZ = 0; //abs(waypoint_g.pose.position.z - current_pose_g.pose.pose.position.z);
     float dMag = sqrt( pow(deltaX, 2) + pow(deltaY, 2) + pow(deltaZ, 2) );
-
-    // ROS_INFO("current pose x %F y %f z %f", (current_pose_g.pose.pose.position.x), (current_pose_g.pose.pose.position.y), (current_pose_g.pose.pose.position.z));
-    // ROS_INFO("waypoint pose x %F y %f z %f", waypoint_g.pose.position.x, waypoint_g.pose.position.y,waypoint_g.pose.position.z);
+    ROS_INFO("dMag %f", dMag);
+    ROS_INFO("current pose x %F y %f z %f", (current_pose_g.pose.pose.position.x), (current_pose_g.pose.pose.position.y), (current_pose_g.pose.pose.position.z));
+    ROS_INFO("waypoint pose x %F y %f z %f", waypoint_g.pose.position.x, waypoint_g.pose.position.y,waypoint_g.pose.position.z);
     //check orientation
     float cosErr = cos(current_heading_g*(M_PI/180)) - cos(local_desired_heading_g*(M_PI/180));
     float sinErr = sin(current_heading_g*(M_PI/180)) - sin(local_desired_heading_g*(M_PI/180));
@@ -329,13 +361,32 @@ int check_waypoint_reached(float tolerance)
     // ROS_INFO("local_desired_heading_g %f", local_desired_heading_g);
     // ROS_INFO("current heading error %f", headingErr);
 
-    if( dMag < tolerance && headingErr < 0.01)
+    if( dMag < pos_tolerance && headingErr < heading_tolerance)
 	{
 		return 1;
 	}else{
 		return 0;
 	}
 }
+/**
+\ingroup control_functions
+this function changes the mode of the drone to a user specified mode. This takes the mode as a string. ex. set_mode("GUIDED")
+@returns 1 - mode change successful
+@returns 0 - mode change not successful
+*/
+int set_mode(std::string mode)
+{
+	mavros_msgs::SetMode srv_setMode;
+    srv_setMode.request.base_mode = 0;
+    srv_setMode.request.custom_mode = mode.c_str();
+    if(set_mode_client.call(srv_setMode)){
+      ROS_INFO("setmode send ok");
+    }else{
+      ROS_ERROR("Failed SetMode");
+      return -1;
+    }
+}
+
 /**
 \ingroup control_functions
 this function changes the mode of the drone to land
@@ -361,12 +412,21 @@ This function is called at the beginning of a program and will start of the comm
 */
 int init_publisher_subscriber(ros::NodeHandle controlnode)
 {
-	local_pos_pub = controlnode.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local", 10);
-	currentPos = controlnode.subscribe<nav_msgs::Odometry>("/mavros/global_position/local", 10, pose_cb);
-	state_sub = controlnode.subscribe<mavros_msgs::State>("mavros/state", 10, state_cb);
-	arming_client = controlnode.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
-	land_client = controlnode.serviceClient<mavros_msgs::CommandTOL>("/mavros/cmd/land");
-	set_mode_client = controlnode.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
-	takeoff_client = controlnode.serviceClient<mavros_msgs::CommandTOL>("/mavros/cmd/takeoff");
+	std::string ros_namespace;
+	if (!controlnode.hasParam("namespace"))
+	{
+
+		ROS_INFO("using default namespace");
+	}else{
+		controlnode.getParam("namespace", ros_namespace);
+		ROS_INFO("using namespace %s", ros_namespace.c_str());
+	}
+	local_pos_pub = controlnode.advertise<geometry_msgs::PoseStamped>((ros_namespace + "/mavros/setpoint_position/local").c_str(), 10);
+	currentPos = controlnode.subscribe<nav_msgs::Odometry>((ros_namespace + "/mavros/global_position/local").c_str(), 10, pose_cb);
+	state_sub = controlnode.subscribe<mavros_msgs::State>((ros_namespace + "/mavros/state").c_str(), 10, state_cb);
+	arming_client = controlnode.serviceClient<mavros_msgs::CommandBool>((ros_namespace + "/mavros/cmd/arming").c_str());
+	land_client = controlnode.serviceClient<mavros_msgs::CommandTOL>((ros_namespace + "/mavros/cmd/land").c_str());
+	set_mode_client = controlnode.serviceClient<mavros_msgs::SetMode>((ros_namespace + "/mavros/set_mode").c_str());
+	takeoff_client = controlnode.serviceClient<mavros_msgs::CommandTOL>((ros_namespace + "/mavros/cmd/takeoff").c_str());
 
 }
