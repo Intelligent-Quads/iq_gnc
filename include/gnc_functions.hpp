@@ -339,7 +339,7 @@ This function returns an int of 1 or 0. THis function can be used to check when 
 @return 1 - waypoint reached 
 @return 0 - waypoint not reached
 */
-int check_waypoint_reached(float tolerance)
+int check_waypoint_reached(float pos_tolerance=0.3, float heading_tolerance=0.01)
 {
 	local_pos_pub.publish(waypoint_g);
 	
@@ -359,15 +359,34 @@ int check_waypoint_reached(float tolerance)
 
     // ROS_INFO("current heading %f", current_heading_g);
     // ROS_INFO("local_desired_heading_g %f", local_desired_heading_g);
-    ROS_INFO("current heading error %f", headingErr);
+    // ROS_INFO("current heading error %f", headingErr);
 
-    if( dMag < tolerance) //&& headingErr < 0.01)
+    if( dMag < pos_tolerance && headingErr < heading_tolerance)
 	{
 		return 1;
 	}else{
 		return 0;
 	}
 }
+/**
+\ingroup control_functions
+this function changes the mode of the drone to a user specified mode. This takes the mode as a string. ex. set_mode("GUIDED")
+@returns 1 - mode change successful
+@returns 0 - mode change not successful
+*/
+int set_mode(std::string mode)
+{
+	mavros_msgs::SetMode srv_setMode;
+    srv_setMode.request.base_mode = 0;
+    srv_setMode.request.custom_mode = mode.c_str();
+    if(set_mode_client.call(srv_setMode)){
+      ROS_INFO("setmode send ok");
+    }else{
+      ROS_ERROR("Failed SetMode");
+      return -1;
+    }
+}
+
 /**
 \ingroup control_functions
 this function changes the mode of the drone to land

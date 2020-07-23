@@ -199,8 +199,6 @@ include_directories(
 
 # Solutions 
 
-add_executable(square_boat src/square_boat.cpp)
-target_link_libraries(square_boat ${catkin_LIBRARIES})
 
 add_executable(square src/square.cpp)
 target_link_libraries(square ${catkin_LIBRARIES})
