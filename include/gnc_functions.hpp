@@ -1,4 +1,5 @@
 #include <mavros_msgs/CommandTOL.h>
+#include <mavros_msgs/CommandLong.h>
 #include <mavros_msgs/State.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Pose.h>
@@ -44,7 +45,7 @@ ros::ServiceClient arming_client;
 ros::ServiceClient land_client;
 ros::ServiceClient set_mode_client;
 ros::ServiceClient takeoff_client;
-
+ros::ServiceClient command_client;
 /**
 \ingroup control_functions
 This structure is a convenient way to format waypoints
@@ -348,9 +349,9 @@ int check_waypoint_reached(float pos_tolerance=0.3, float heading_tolerance=0.01
     float deltaY = abs(waypoint_g.pose.position.y - current_pose_g.pose.pose.position.y);
     float deltaZ = 0; //abs(waypoint_g.pose.position.z - current_pose_g.pose.pose.position.z);
     float dMag = sqrt( pow(deltaX, 2) + pow(deltaY, 2) + pow(deltaZ, 2) );
-    ROS_INFO("dMag %f", dMag);
-    ROS_INFO("current pose x %F y %f z %f", (current_pose_g.pose.pose.position.x), (current_pose_g.pose.pose.position.y), (current_pose_g.pose.pose.position.z));
-    ROS_INFO("waypoint pose x %F y %f z %f", waypoint_g.pose.position.x, waypoint_g.pose.position.y,waypoint_g.pose.position.z);
+    // ROS_INFO("dMag %f", dMag);
+    // ROS_INFO("current pose x %F y %f z %f", (current_pose_g.pose.pose.position.x), (current_pose_g.pose.pose.position.y), (current_pose_g.pose.pose.position.z));
+    // ROS_INFO("waypoint pose x %F y %f z %f", waypoint_g.pose.position.x, waypoint_g.pose.position.y,waypoint_g.pose.position.z);
     //check orientation
     float cosErr = cos(current_heading_g*(M_PI/180)) - cos(local_desired_heading_g*(M_PI/180));
     float sinErr = sin(current_heading_g*(M_PI/180)) - sin(local_desired_heading_g*(M_PI/180));
@@ -381,6 +382,7 @@ int set_mode(std::string mode)
     srv_setMode.request.custom_mode = mode.c_str();
     if(set_mode_client.call(srv_setMode)){
       ROS_INFO("setmode send ok");
+	  return 0;
     }else{
       ROS_ERROR("Failed SetMode");
       return -1;
@@ -407,6 +409,32 @@ int land()
 }
 /**
 \ingroup control_functions
+This function is used to change the speed of the vehicle in guided mode. it takes the speed in meters per second as a float as the input
+@returns 0 for success
+*/
+int set_speed(float speed__mps)
+{
+	mavros_msgs::CommandLong speed_cmd;
+	speed_cmd.request.command = 178;
+	speed_cmd.request.param1 = 1; // ground speed type 
+	speed_cmd.request.param2 = speed__mps;
+	speed_cmd.request.param3 = -1; // no throttle change
+	speed_cmd.request.param4 = 0; // absolute speed
+	ROS_INFO("setting speed to %f", speed__mps);
+	if(command_client.call(speed_cmd))
+	{
+		ROS_INFO("change speed command succeeded %d", speed_cmd.response.success);
+		return 0;
+	}else{
+		ROS_ERROR("change speed command failed %d", speed_cmd.response.success);
+		ROS_ERROR("change speed result was %d ", speed_cmd.response.result);
+		return -1;
+	}
+	ROS_INFO("change speed result was %d ", speed_cmd.response.result);
+	return 0;
+}
+/**
+\ingroup control_functions
 This function is called at the beginning of a program and will start of the communication links to the FCU. The function requires the program's ros nodehandle as an input 
 @returns n/a
 */
@@ -428,5 +456,6 @@ int init_publisher_subscriber(ros::NodeHandle controlnode)
 	land_client = controlnode.serviceClient<mavros_msgs::CommandTOL>((ros_namespace + "/mavros/cmd/land").c_str());
 	set_mode_client = controlnode.serviceClient<mavros_msgs::SetMode>((ros_namespace + "/mavros/set_mode").c_str());
 	takeoff_client = controlnode.serviceClient<mavros_msgs::CommandTOL>((ros_namespace + "/mavros/cmd/takeoff").c_str());
-
+	command_client = controlnode.serviceClient<mavros_msgs::CommandLong>((ros_namespace + "/mavros/cmd/command").c_str());
+	return 0;
 }
