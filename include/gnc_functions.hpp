@@ -46,6 +46,7 @@ float local_desired_heading_g;
 
 ros::Publisher local_pos_pub;
 ros::Publisher global_lla_pos_pub;
+ros::Publisher global_lla_pos_pub_raw;
 ros::Subscriber currentPos;
 ros::Subscriber state_sub;
 ros::ServiceClient arming_client;
@@ -207,6 +208,19 @@ void set_destination_lla(float lat, float lon, float alt, float heading)
 	lla_msg.pose.orientation.z = qz;
 	global_lla_pos_pub.publish(lla_msg);
 }
+void set_destination_lla_raw(float lat, float lon, float alt, float heading)
+{
+	mavros_msgs::GlobalPositionTarget lla_msg;
+	lla_msg.coordinate_frame = lla_msg.FRAME_GLOBAL_TERRAIN_ALT;
+	lla_msg.type_mask = lla_msg.IGNORE_VX | lla_msg.IGNORE_VY | lla_msg.IGNORE_VZ | lla_msg.IGNORE_AFX | lla_msg.IGNORE_AFY | lla_msg.IGNORE_AFZ | lla_msg.IGNORE_YAW; 
+	lla_msg.latitude = lat;
+	lla_msg.longitude = lon;
+	lla_msg.altitude = alt;
+	lla_msg.yaw = heading;
+	global_lla_pos_pub_raw.publish(lla_msg);
+}
+
+
 /**
 \ingroup control_functions
 Wait for connect is a function that will hold the program until communication with the FCU is established.
@@ -503,6 +517,7 @@ int init_publisher_subscriber(ros::NodeHandle controlnode)
 	}
 	local_pos_pub = controlnode.advertise<geometry_msgs::PoseStamped>((ros_namespace + "/mavros/setpoint_position/local").c_str(), 10);
 	global_lla_pos_pub = controlnode.advertise<geographic_msgs::GeoPoseStamped>((ros_namespace + "/mavros/setpoint_position/global").c_str(), 10);
+	global_lla_pos_pub_raw = controlnode.advertise<mavros_msgs::GlobalPositionTarget>((ros_namespace + "/mavros/setpoint_raw/global").c_str(), 10);
 	currentPos = controlnode.subscribe<nav_msgs::Odometry>((ros_namespace + "/mavros/global_position/local").c_str(), 10, pose_cb);
 	state_sub = controlnode.subscribe<mavros_msgs::State>((ros_namespace + "/mavros/state").c_str(), 10, state_cb);
 	arming_client = controlnode.serviceClient<mavros_msgs::CommandBool>((ros_namespace + "/mavros/cmd/arming").c_str());
