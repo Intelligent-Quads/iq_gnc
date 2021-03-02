@@ -499,6 +499,38 @@ int auto_set_current_waypoint(int seq)
 	}
 	return 0;
 }
+
+/**
+\ingroup control_functions
+used to set yaw when running lla waypoint missions
+param1: Angle				target angle, 0 is north																			deg
+param2: Angular Speed		angular speed																						deg/s
+param3: Direction			direction: -1: counter clockwise, 1: clockwise					min: -1 max:1 increment:2	
+param4: Relative			0: absolute angle, 1: relative offset							min:0 max:1 increment:1	
+@returns 0 for success
+*/
+int set_yaw(float angle, float speed, float dir, float absolute_rel)
+{
+    mavros_msgs::CommandLong yaw_msg;
+    yaw_msg.request.command = 115;
+    yaw_msg.request.param1 = angle; // target angle 
+    yaw_msg.request.param2 = speed; //target speed
+    yaw_msg.request.param3 = dir; 
+    yaw_msg.request.param4 = absolute_rel; 
+    ROS_INFO("Setting the yaw angle to %f [deg]", angle);
+    if(command_client.call(yaw_msg))
+    {
+        ROS_INFO("yaw angle set returned %d", yaw_msg.response.success);
+        return 0;
+    }else{
+        ROS_ERROR("setting yaw angle failed %d", yaw_msg.response.success);
+        return -1;
+    }
+    ROS_INFO("Yaw angle set at %d ", yaw_msg.response.result);
+    return 0;
+}
+
+
 /**
 \ingroup control_functions
 This function is called at the beginning of a program and will start of the communication links to the FCU. The function requires the program's ros nodehandle as an input 
