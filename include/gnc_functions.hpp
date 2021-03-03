@@ -212,11 +212,11 @@ void set_destination_lla_raw(float lat, float lon, float alt, float heading)
 {
 	mavros_msgs::GlobalPositionTarget lla_msg;
 	lla_msg.coordinate_frame = lla_msg.FRAME_GLOBAL_TERRAIN_ALT;
-	lla_msg.type_mask = lla_msg.IGNORE_VX | lla_msg.IGNORE_VY | lla_msg.IGNORE_VZ | lla_msg.IGNORE_AFX | lla_msg.IGNORE_AFY | lla_msg.IGNORE_AFZ | lla_msg.IGNORE_YAW; 
+	lla_msg.type_mask = lla_msg.IGNORE_VX | lla_msg.IGNORE_VY | lla_msg.IGNORE_VZ | lla_msg.IGNORE_AFX | lla_msg.IGNORE_AFY | lla_msg.IGNORE_AFZ | lla_msg.IGNORE_YAW | lla_msg.IGNORE_YAW_RATE ; 
 	lla_msg.latitude = lat;
 	lla_msg.longitude = lon;
 	lla_msg.altitude = alt;
-	lla_msg.yaw = heading;
+	// lla_msg.yaw = heading;
 	global_lla_pos_pub_raw.publish(lla_msg);
 }
 
@@ -526,11 +526,37 @@ int set_yaw(float angle, float speed, float dir, float absolute_rel)
         ROS_ERROR("setting yaw angle failed %d", yaw_msg.response.success);
         return -1;
     }
-    ROS_INFO("Yaw angle set at %d ", yaw_msg.response.result);
+	if(absolute_rel == 0 )
+	{
+		ROS_INFO("Yaw angle set at %d ", yaw_msg.response.result);
+	}else{
+		ROS_INFO("Yaw angle set at %d relative to current heading", yaw_msg.response.result);
+	}
+    
     return 0;
 }
 
-
+int takeoff_global(float lat, float lon, float alt)
+{
+    mavros_msgs::CommandTOL srv_takeoff_global;
+    srv_takeoff_global.request.min_pitch = 0;
+    //srv_takeoff_global.request.yaw = heading; //check yaw angle
+    srv_takeoff_global.request.latitude = lat;
+    srv_takeoff_global.request.longitude = lon;
+    srv_takeoff_global.request.altitude = alt;
+        
+    if(takeoff_client.call(srv_takeoff_global)){
+        sleep(3);
+        ROS_INFO("takeoff sent at the provided GPS coordinates %d", srv_takeoff_global.response.success);
+    }
+    else
+    {
+        ROS_ERROR("Failed Takeoff %d", srv_takeoff_global.response.success);
+        
+    }
+    sleep(2);
+    return 0;
+}
 /**
 \ingroup control_functions
 This function is called at the beginning of a program and will start of the communication links to the FCU. The function requires the program's ros nodehandle as an input 
