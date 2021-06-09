@@ -1,0 +1,58 @@
+# This is a CI workflow to Catkin Build on this project with Actions.
+name: Catkin Build test
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch.
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+  # Allows you to run this workflow manually from the Actions tab.
+  workflow_dispatch:
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel.
+
+jobs:
+  # This workflow contains two jobs build this package in noetic and melodic which are run in parallel.
+  
+  melodic_build:
+    # Selects which OS to run this build on. (Ubuntu 18.04).
+    runs-on: ubuntu-18.04
+    # Giving it a name for easy identification.
+    name: ROS Melodic Catkin Build.
+    steps:
+    # Github Action checkout version.
+    - uses: actions/checkout@v1
+    # Calling the action created by betwo and using the latest one by using master.
+    - uses: betwo/github-setup-catkin@master
+      with:
+        # Selecting the ROS Version.
+        ros-version: 'melodic'
+        # Which build tool to use for workspace initialization (catkin, catkin_tools).
+        build-tool: 'catkin_tools'
+        # Root directory of the catkin workspace.
+        workspace: '$GITHUB_WORKSPACE'
+      # Run Catkin build.
+    - run: catkin build
+
+
+  noetic_build:
+    # Selects which OS to run this build on. (Ubuntu 20.04).
+    runs-on: ubuntu-20.04
+    # Giving it a name for easy identification.
+    name: ROS Noetic Catkin Build.
+    steps:
+      # Github Action checkout version.
+    - uses: actions/checkout@v1
+      # Calling the action created by betwo and using the latest one by using master.
+    - uses: betwo/github-setup-catkin@master
+      with:
+        # Selecting the ROS Version.
+        ros-version: 'noetic'
+        # Which build tool to use for workspace initialization (catkin, catkin_tools).
+        build-tool: 'catkin_tools'
+        # Root directory of the catkin workspace.
+        workspace: '$GITHUB_WORKSPACE'
+      # Run Catkin Build.
+    - run: catkin build
