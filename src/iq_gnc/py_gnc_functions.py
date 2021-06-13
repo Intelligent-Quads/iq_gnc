@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from iq_gnc.PrintColours import *
 import rospy
 from math import atan2, pow, sqrt, degrees, radians, sin, cos
 from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion
@@ -31,9 +32,9 @@ class gnc_api:
 
         self.ns = rospy.get_namespace()
         if self.ns == "/":
-            rospy.loginfo("Using default namespace")
+            rospy.loginfo(CBLUE2 + "Using default namespace" + CEND)
         else:
-            rospy.loginfo("Using {} namespace".format(self.ns))
+            rospy.loginfo(CBLUE2 + "Using {} namespace".format(self.ns) + CEND)
 
         self.local_pos_pub = rospy.Publisher(
             name="{}mavros/setpoint_position/local".format(self.ns),
@@ -84,7 +85,7 @@ class gnc_api:
         self.command_client = rospy.ServiceProxy(
             name="{}mavros/cmd/command".format(self.ns), service_class=CommandLong
         )
-        rospy.loginfo("Initalization Complete.")
+        rospy.loginfo(CBOLD + CGREEN2 + "Initialization Complete." + CEND)
 
     def state_cb(self, message):
         self.current_state_g = message
@@ -144,10 +145,11 @@ class gnc_api:
         srv_land = CommandTOLRequest(0, 0, 0, 0, 0)
         response = self.land_client(srv_land)
         if response.success:
-            rospy.loginfo("Land Sent {}".format(str(response.success)))
+            rospy.loginfo(
+                CGREEN2 + "Land Sent {}".format(str(response.success)) + CEND)
             return 0
         else:
-            rospy.logerr("Landing failed")
+            rospy.logerr(CRED2 + "Landing failed" + CEND)
             return -1
 
     def wait4connect(self):
@@ -157,15 +159,15 @@ class gnc_api:
             0 (int): Connected to FCU.
             -1 (int): Failed to connect to FCU.
         """
-        rospy.loginfo("Waiting for FCU connection")
+        rospy.loginfo(CYELLOW2 + "Waiting for FCU connection" + CEND)
         while not rospy.is_shutdown() and not self.current_state_g.connected:
             rospy.sleep(0.01)
         else:
             if self.current_state_g.connected:
-                rospy.loginfo("FCU connected")
+                rospy.loginfo(CGREEN2 + "FCU connected" + CEND)
                 return 0
             else:
-                rospy.logerr("Error connecting to drone's FCU")
+                rospy.logerr(CRED2 + "Error connecting to drone's FCU" + CEND)
                 return -1
 
     def wait4start(self):
@@ -175,15 +177,17 @@ class gnc_api:
             0 (int): Mission started successfully.
             -1 (int): Failed to start mission.
         """
-        rospy.loginfo("Waiting for user to set mode to GUIDED")
+        rospy.loginfo(CYELLOW2 + CBLINK +
+                      "Waiting for user to set mode to GUIDED" + CEND)
         while not rospy.is_shutdown() and self.current_state_g.mode != "GUIDED":
             rospy.sleep(0.01)
         else:
             if self.current_state_g.mode == "GUIDED":
-                rospy.loginfo("Mode set to GUIDED. Starting Mission...")
+                rospy.loginfo(
+                    CGREEN2 + "Mode set to GUIDED. Starting Mission..." + CEND)
                 return 0
             else:
-                rospy.logerr("Error startting mission")
+                rospy.logerr(CRED2 + "Error startting mission" + CEND)
                 return -1
 
     def set_mode(self, mode):
@@ -199,10 +203,10 @@ class gnc_api:
         SetMode_srv = SetModeRequest(0, mode)
         response = self.set_mode_client(SetMode_srv)
         if response.mode_sent:
-            rospy.loginfo("SetMode Was successful")
+            rospy.loginfo(CGREEN2 + "SetMode Was successful" + CEND)
             return 0
         else:
-            rospy.logerr("SetMode has failed")
+            rospy.logerr(CRED2 + "SetMode has failed" + CEND)
             return -1
 
     def set_speed(self, speed_mps):
@@ -222,22 +226,21 @@ class gnc_api:
         speed_cmd.param3 = -1
         speed_cmd.param4 = 0
 
-        rospy.loginfo("Setting speed to {}m/s".format(str(speed_mps)))
+        rospy.loginfo(
+            CBLUE2 + "Setting speed to {}m/s".format(str(speed_mps)) + CEND)
         response = self.command_client(speed_cmd)
 
         if response.success:
             rospy.loginfo(
-                "Speed set successfully with code {}".format(
-                    str(response.success))
-            )
-            rospy.loginfo("Change Speed result was {}".format(
-                str(response.result)))
+                CGREEN2 + "Speed set successfully with code {}".format(str(response.success)) + CEND)
+            rospy.loginfo(
+                CGREEN2 + "Change Speed result was {}".format(str(response.result)) + CEND)
             return 0
         else:
-            rospy.logerr("Speed set failed with code {}".format(
-                str(response.success)))
-            rospy.logerr("Speed set result was {}".format(
-                str(response.result)))
+            rospy.logerr(
+                CRED2 + "Speed set failed with code {}".format(str(response.success)) + CEND)
+            rospy.logerr(
+                CRED2 + "Speed set result was {}".format(str(response.result)) + CEND)
             return -1
 
     def set_heading(self, heading):
@@ -315,7 +318,7 @@ class gnc_api:
             self.local_pos_pub.publish(self.waypoint_g)
             rospy.sleep(0.01)
 
-        rospy.loginfo("Arming Drone")
+        rospy.loginfo(CBLUE2 + "Arming Drone" + CEND)
 
         arm_request = CommandBoolRequest(True)
 
@@ -325,17 +328,17 @@ class gnc_api:
             self.local_pos_pub.publish(self.waypoint_g)
         else:
             if response.success:
-                rospy.loginfo("Arming successful")
+                rospy.loginfo(CGREEN2 + "Arming successful" + CEND)
                 return 0
             else:
-                rospy.logerr("Arming failed")
+                rospy.logerr(CRED2 + "Arming failed" + CEND)
                 return -1
 
     def takeoff(self, takeoff_alt):
         """The takeoff function will arm the drone and put the drone in a hover above the initial position.
 
         Args:
-            takeoff_alt (Float): The altitude at which the drone shoud hover.
+            takeoff_alt (Float): The altitude at which the drone should hover.
 
         Returns:
             0 (int): Takeoff successful.
@@ -346,10 +349,10 @@ class gnc_api:
         response = self.takeoff_client(takeoff_srv)
         rospy.sleep(3)
         if response.success:
-            rospy.loginfo("Takeoff successful")
+            rospy.loginfo(CGREEN2 + "Takeoff successful" + CEND)
             return 0
         else:
-            rospy.logerr("Takeoff failed")
+            rospy.logerr(CRED2 + "Takeoff failed" + CEND)
             return -1
 
     def initialize_local_frame(self):
@@ -379,8 +382,9 @@ class gnc_api:
         self.local_offset_pose_g.z /= 30.0
         self.local_offset_g /= 30.0
 
-        rospy.loginfo("Coordinate offset set")
-        rospy.loginfo("The X-Axis is facing: {}".format(self.local_offset_g))
+        rospy.loginfo(CBLUE2 + "Coordinate offset set" + CEND)
+        rospy.loginfo(
+            CGREEN2 + "The X-Axis is facing: {}".format(self.local_offset_g) + CEND)
 
     def check_waypoint_reached(self, pos_tol=0.3, head_tol=0.01):
         """This function checks if the waypoint is reached within given tolerance and returns an int of 1 or 0. This function can be used to check when to request the next waypoint in the mission.
