@@ -11,7 +11,7 @@ from mavros_msgs.srv import CommandBool, CommandBoolRequest
 from mavros_msgs.srv import SetMode, SetModeRequest
 
 """Control Functions
-    This module is designed to make high level control programming simple.
+	This module is designed to make high level control programming simple.
 """
 
 
@@ -94,7 +94,7 @@ class gnc_api:
         """Gets the raw pose of the drone and processes it for use in control.
 
         Args:
-            msg (geometry_msgs/Pose): Raw pose of the drone.
+                msg (geometry_msgs/Pose): Raw pose of the drone.
         """
         self.current_pose_g = msg
         self.enu_2_local()
@@ -132,15 +132,16 @@ class gnc_api:
 
         return current_pos_local
 
-    def get_current_location(self):
-        return self.enu_2_local()
+    def get_current_heading(self): return self.current_heading_g
+
+    def get_current_location(self): return self.enu_2_local()
 
     def land(self):
         """The function changes the mode of the drone to LAND.
 
         Returns:
-            0 (int): LAND successful
-            -1 (int): LAND unsuccessful.
+                0 (int): LAND successful
+                -1 (int): LAND unsuccessful.
         """
         srv_land = CommandTOLRequest(0, 0, 0, 0, 0)
         response = self.land_client(srv_land)
@@ -156,8 +157,8 @@ class gnc_api:
         """Wait for connect is a function that will hold the program until communication with the FCU is established.
 
         Returns:
-            0 (int): Connected to FCU.
-            -1 (int): Failed to connect to FCU.
+                0 (int): Connected to FCU.
+                -1 (int): Failed to connect to FCU.
         """
         rospy.loginfo(CYELLOW2 + "Waiting for FCU connection" + CEND)
         while not rospy.is_shutdown() and not self.current_state_g.connected:
@@ -174,8 +175,8 @@ class gnc_api:
         """This function will hold the program until the user signals the FCU to mode enter GUIDED mode. This is typically done from a switch on the safety pilot's remote or from the Ground Control Station.
 
         Returns:
-            0 (int): Mission started successfully.
-            -1 (int): Failed to start mission.
+                0 (int): Mission started successfully.
+                -1 (int): Failed to start mission.
         """
         rospy.loginfo(CYELLOW2 + CBLINK +
                       "Waiting for user to set mode to GUIDED" + CEND)
@@ -194,11 +195,11 @@ class gnc_api:
         """This function changes the mode of the drone to a user specified mode. This takes the mode as a string. Ex. set_mode("GUIDED").
 
         Args:
-            mode (String): Can be set to modes given in https://ardupilot.org/copter/docs/flight-modes.html
+                mode (String): Can be set to modes given in https://ardupilot.org/copter/docs/flight-modes.html
 
         Returns:
-            0 (int): Mode Set successful.
-            -1 (int): Mode Set unsuccessful.
+                0 (int): Mode Set successful.
+                -1 (int): Mode Set unsuccessful.
         """
         SetMode_srv = SetModeRequest(0, mode)
         response = self.set_mode_client(SetMode_srv)
@@ -213,11 +214,11 @@ class gnc_api:
         """This function is used to change the speed of the vehicle in guided mode. It takes the speed in meters per second as a float as the input.
 
         Args:
-            speed_mps (Float): Speed in m/s.
+                speed_mps (Float): Speed in m/s.
 
         Returns:
-            0 (int): Speed set successful.
-            -1 (int): Speed set unsuccessful.
+                0 (int): Speed set successful.
+                -1 (int): Speed set unsuccessful.
         """
         speed_cmd = CommandLongRequest()
         speed_cmd.command = 178
@@ -247,7 +248,7 @@ class gnc_api:
         """This function is used to specify the drone's heading in the local reference frame. Psi is a counter clockwise rotation following the drone's reference frame defined by the x axis through the right side of the drone with the y axis through the front of the drone.
 
         Args:
-            heading (Float): θ(degree) Heading angle of the drone.
+                heading (Float): θ(degree) Heading angle of the drone.
         """
         self.local_desired_heading_g = heading
         heading = heading + self.correction_heading_g + self.local_offset_g
@@ -279,10 +280,10 @@ class gnc_api:
         """This function is used to command the drone to fly to a waypoint. These waypoints should be specified in the local reference frame. This is typically defined from the location the drone is launched. Psi is counter clockwise rotation following the drone's reference frame defined by the x axis through the right side of the drone with the y axis through the front of the drone.
 
         Args:
-            x (Float): x(m) Distance with respect to your local frame.
-            y (Float): y(m) Distance with respect to your local frame.
-            z (Float): z(m) Distance with respect to your local frame.
-            psi (Float): θ(degree) Heading angle of the drone.
+                x (Float): x(m) Distance with respect to your local frame.
+                y (Float): y(m) Distance with respect to your local frame.
+                z (Float): z(m) Distance with respect to your local frame.
+                psi (Float): θ(degree) Heading angle of the drone.
         """
         self.set_heading(psi)
 
@@ -309,8 +310,8 @@ class gnc_api:
         """Arms the drone for takeoff.
 
         Returns:
-            0 (int): Arming successful.
-            -1 (int): Arming unsuccessful.
+                0 (int): Arming successful.
+                -1 (int): Arming unsuccessful.
         """
         self.set_destination(0, 0, 0, 0)
 
@@ -338,11 +339,11 @@ class gnc_api:
         """The takeoff function will arm the drone and put the drone in a hover above the initial position.
 
         Args:
-            takeoff_alt (Float): The altitude at which the drone should hover.
+                takeoff_alt (Float): The altitude at which the drone should hover.
 
         Returns:
-            0 (int): Takeoff successful.
-            -1 (int): Takeoff unsuccessful.
+                0 (int): Takeoff successful.
+                -1 (int): Takeoff unsuccessful.
         """
         self.arm()
         takeoff_srv = CommandTOLRequest(0, 0, 0, 0, takeoff_alt)
@@ -390,12 +391,12 @@ class gnc_api:
         """This function checks if the waypoint is reached within given tolerance and returns an int of 1 or 0. This function can be used to check when to request the next waypoint in the mission.
 
         Args:
-            pos_tol (float, optional): Position tolerance under which the drone must be with respect to its position in space. Defaults to 0.3.
-            head_tol (float, optional): Heading or angle tolerance under which the drone must be with respect to its orientation in space. Defaults to 0.01.
+                pos_tol (float, optional): Position tolerance under which the drone must be with respect to its position in space. Defaults to 0.3.
+                head_tol (float, optional): Heading or angle tolerance under which the drone must be with respect to its orientation in space. Defaults to 0.01.
 
         Returns:
-            1 (int): Waypoint reached successfully.
-            0 (int): Failed to reach Waypoint.
+                1 (int): Waypoint reached successfully.
+                0 (int): Failed to reach Waypoint.
         """
         self.local_pos_pub.publish(self.waypoint_g)
 
