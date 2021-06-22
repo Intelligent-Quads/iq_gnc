@@ -132,9 +132,21 @@ class gnc_api:
 
         return current_pos_local
 
-    def get_current_heading(self): return self.current_heading_g
+    def get_current_heading(self):
+        """Returns the current heading of the drone.
 
-    def get_current_location(self): return self.enu_2_local()
+        Returns:
+            Heading (Float): θ in is degrees.
+        """
+        return self.current_heading_g
+
+    def get_current_location(self):
+        """Returns the current position of the drone.
+
+        Returns:
+            Position (geometry_msgs.Point()): Returns position of type geometry_msgs.Point().
+        """
+        return self.enu_2_local()
 
     def land(self):
         """The function changes the mode of the drone to LAND.
