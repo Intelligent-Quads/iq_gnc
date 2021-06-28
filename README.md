@@ -20,6 +20,8 @@ The intelligent quads gnc_functions are collection of high level functions to he
 
 [py_gnc_functions.py documentation](docs/py_gnc_functions.md)
 
+special thanks to [Sahas-Ananth](https://github.com/Sahas-Ananth) for translating the gnc_functions to python! 
+
 ---
 
 ## Example Code (C++)
