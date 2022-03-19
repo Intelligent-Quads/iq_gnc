@@ -206,9 +206,6 @@ target_link_libraries(square ${catkin_LIBRARIES})
 add_executable(gnc_example src/gnc_tutorial.cpp)
 target_link_libraries(gnc_example ${catkin_LIBRARIES})
 
-add_executable(vio_estimate src/vio2vision_estimate.cpp)
-target_link_libraries(vio_estimate ${catkin_LIBRARIES})
-
 add_executable(set_wp src/set_wp.cpp)
 target_link_libraries(set_wp ${catkin_LIBRARIES})
 
@@ -219,6 +216,3 @@ target_link_libraries(set_wp ${catkin_LIBRARIES})
 #target_link_libraries(avoidance_sol ${catkin_LIBRARIES})
 
 # Add tutorial add_executable lines here 
-
-add_executable(range_finder_plugin src/mavlink_range_finder_plugin.cpp)
-target_link_libraries(range_finder_plugin ${catkin_LIBRARIES})
