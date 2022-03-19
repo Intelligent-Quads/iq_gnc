@@ -1,5 +1,10 @@
 #include <mavros_msgs/CommandTOL.h>
 #include <mavros_msgs/CommandLong.h>
+#include <mavros_msgs/WaypointPull.h>
+#include <mavros_msgs/WaypointPush.h>
+#include <mavros_msgs/WaypointSetCurrent.h>
+#include <mavros_msgs/GlobalPositionTarget.h>
+#include <geographic_msgs/GeoPoseStamped.h>
 #include <mavros_msgs/State.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Pose.h>
@@ -17,6 +22,7 @@
 #include <ros/duration.h>
 #include <iostream>
 #include <string>
+
 
 
 /**
@@ -39,6 +45,8 @@ float local_desired_heading_g;
 
 
 ros::Publisher local_pos_pub;
+ros::Publisher global_lla_pos_pub;
+ros::Publisher global_lla_pos_pub_raw;
 ros::Subscriber currentPos;
 ros::Subscriber state_sub;
 ros::ServiceClient arming_client;
@@ -46,6 +54,9 @@ ros::ServiceClient land_client;
 ros::ServiceClient set_mode_client;
 ros::ServiceClient takeoff_client;
 ros::ServiceClient command_client;
+ros::ServiceClient auto_waypoint_pull_client;
+ros::ServiceClient auto_waypoint_push_client;
+ros::ServiceClient auto_waypoint_set_current_client;
 /**
 \ingroup control_functions
 This structure is a convenient way to format waypoints
@@ -168,6 +179,48 @@ void set_destination(float x, float y, float z, float psi)
 	local_pos_pub.publish(waypoint_g);
 	
 }
+void set_destination_lla(float lat, float lon, float alt, float heading)
+{
+	geographic_msgs::GeoPoseStamped lla_msg;
+	// mavros_msgs::GlobalPositionTarget 
+	lla_msg.pose.position.latitude = lat;
+	lla_msg.pose.position.longitude = lon;
+	lla_msg.pose.position.altitude = alt;
+	float yaw = heading*(M_PI/180);
+	float pitch = 0;
+	float roll = 0;
+
+	float cy = cos(yaw * 0.5);
+	float sy = sin(yaw * 0.5);
+	float cr = cos(roll * 0.5);
+	float sr = sin(roll * 0.5);
+	float cp = cos(pitch * 0.5);
+	float sp = sin(pitch * 0.5);
+
+	float qw = cy * cr * cp + sy * sr * sp;
+	float qx = cy * sr * cp - sy * cr * sp;
+	float qy = cy * cr * sp + sy * sr * cp;
+	float qz = sy * cr * cp - cy * sr * sp;
+
+	lla_msg.pose.orientation.w = qw;
+	lla_msg.pose.orientation.x = qx;
+	lla_msg.pose.orientation.y = qy;
+	lla_msg.pose.orientation.z = qz;
+	global_lla_pos_pub.publish(lla_msg);
+}
+void set_destination_lla_raw(float lat, float lon, float alt, float heading)
+{
+	mavros_msgs::GlobalPositionTarget lla_msg;
+	lla_msg.coordinate_frame = lla_msg.FRAME_GLOBAL_TERRAIN_ALT;
+	lla_msg.type_mask = lla_msg.IGNORE_VX | lla_msg.IGNORE_VY | lla_msg.IGNORE_VZ | lla_msg.IGNORE_AFX | lla_msg.IGNORE_AFY | lla_msg.IGNORE_AFZ | lla_msg.IGNORE_YAW | lla_msg.IGNORE_YAW_RATE ; 
+	lla_msg.latitude = lat;
+	lla_msg.longitude = lon;
+	lla_msg.altitude = alt;
+	// lla_msg.yaw = heading;
+	global_lla_pos_pub_raw.publish(lla_msg);
+}
+
+
 /**
 \ingroup control_functions
 Wait for connect is a function that will hold the program until communication with the FCU is established.
@@ -433,6 +486,77 @@ int set_speed(float speed__mps)
 	ROS_INFO("change speed result was %d ", speed_cmd.response.result);
 	return 0;
 }
+int auto_set_current_waypoint(int seq)
+{
+	mavros_msgs::WaypointSetCurrent wp_set_cur_msg;
+	wp_set_cur_msg.request.wp_seq = seq;
+	ROS_INFO("setting current wp to wp # %d", seq);
+	if(auto_waypoint_set_current_client.call(wp_set_cur_msg))
+	{
+		ROS_INFO("set current wp secceeded %d", wp_set_cur_msg.response.success);
+	}else{
+		ROS_ERROR("set current wp failed %d", wp_set_cur_msg.response.success);
+	}
+	return 0;
+}
+
+/**
+\ingroup control_functions
+used to set yaw when running lla waypoint missions
+param1: Angle				target angle, 0 is north																			deg
+param2: Angular Speed		angular speed																						deg/s
+param3: Direction			direction: -1: counter clockwise, 1: clockwise					min: -1 max:1 increment:2	
+param4: Relative			0: absolute angle, 1: relative offset							min:0 max:1 increment:1	
+@returns 0 for success
+*/
+int set_yaw(float angle, float speed, float dir, float absolute_rel)
+{
+    mavros_msgs::CommandLong yaw_msg;
+    yaw_msg.request.command = 115;
+    yaw_msg.request.param1 = angle; // target angle 
+    yaw_msg.request.param2 = speed; //target speed
+    yaw_msg.request.param3 = dir; 
+    yaw_msg.request.param4 = absolute_rel; 
+    ROS_INFO("Setting the yaw angle to %f [deg]", angle);
+    if(command_client.call(yaw_msg))
+    {
+        ROS_INFO("yaw angle set returned %d", yaw_msg.response.success);
+        return 0;
+    }else{
+        ROS_ERROR("setting yaw angle failed %d", yaw_msg.response.success);
+        return -1;
+    }
+	if(absolute_rel == 0 )
+	{
+		ROS_INFO("Yaw angle set at %d ", yaw_msg.response.result);
+	}else{
+		ROS_INFO("Yaw angle set at %d relative to current heading", yaw_msg.response.result);
+	}
+    
+    return 0;
+}
+
+int takeoff_global(float lat, float lon, float alt)
+{
+    mavros_msgs::CommandTOL srv_takeoff_global;
+    srv_takeoff_global.request.min_pitch = 0;
+    //srv_takeoff_global.request.yaw = heading; //check yaw angle
+    srv_takeoff_global.request.latitude = lat;
+    srv_takeoff_global.request.longitude = lon;
+    srv_takeoff_global.request.altitude = alt;
+        
+    if(takeoff_client.call(srv_takeoff_global)){
+        sleep(3);
+        ROS_INFO("takeoff sent at the provided GPS coordinates %d", srv_takeoff_global.response.success);
+    }
+    else
+    {
+        ROS_ERROR("Failed Takeoff %d", srv_takeoff_global.response.success);
+        
+    }
+    sleep(2);
+    return 0;
+}
 /**
 \ingroup control_functions
 This function is called at the beginning of a program and will start of the communication links to the FCU. The function requires the program's ros nodehandle as an input 
@@ -450,6 +574,8 @@ int init_publisher_subscriber(ros::NodeHandle controlnode)
 		ROS_INFO("using namespace %s", ros_namespace.c_str());
 	}
 	local_pos_pub = controlnode.advertise<geometry_msgs::PoseStamped>((ros_namespace + "/mavros/setpoint_position/local").c_str(), 10);
+	global_lla_pos_pub = controlnode.advertise<geographic_msgs::GeoPoseStamped>((ros_namespace + "/mavros/setpoint_position/global").c_str(), 10);
+	global_lla_pos_pub_raw = controlnode.advertise<mavros_msgs::GlobalPositionTarget>((ros_namespace + "/mavros/setpoint_raw/global").c_str(), 10);
 	currentPos = controlnode.subscribe<nav_msgs::Odometry>((ros_namespace + "/mavros/global_position/local").c_str(), 10, pose_cb);
 	state_sub = controlnode.subscribe<mavros_msgs::State>((ros_namespace + "/mavros/state").c_str(), 10, state_cb);
 	arming_client = controlnode.serviceClient<mavros_msgs::CommandBool>((ros_namespace + "/mavros/cmd/arming").c_str());
@@ -457,5 +583,8 @@ int init_publisher_subscriber(ros::NodeHandle controlnode)
 	set_mode_client = controlnode.serviceClient<mavros_msgs::SetMode>((ros_namespace + "/mavros/set_mode").c_str());
 	takeoff_client = controlnode.serviceClient<mavros_msgs::CommandTOL>((ros_namespace + "/mavros/cmd/takeoff").c_str());
 	command_client = controlnode.serviceClient<mavros_msgs::CommandLong>((ros_namespace + "/mavros/cmd/command").c_str());
+	auto_waypoint_pull_client = controlnode.serviceClient<mavros_msgs::WaypointPull>((ros_namespace + "/mavros/mission/pull").c_str());
+	auto_waypoint_push_client = controlnode.serviceClient<mavros_msgs::WaypointPush>((ros_namespace + "/mavros/mission/push").c_str());
+	auto_waypoint_set_current_client = controlnode.serviceClient<mavros_msgs::WaypointSetCurrent>((ros_namespace + "/mavros/mission/set_current").c_str());
 	return 0;
 }
